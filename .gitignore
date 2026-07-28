@@ -1,0 +1,24 @@
+# Python
+__pycache__/
+*.py[cod]
+.venv/
+venv/
+.ipynb_checkpoints/
+
+# Large experiment artifacts — keep summary CSVs/figures, ignore raw
+results/**/images/
+results/**/activations/
+results/**/*.pt
+results/**/*.npz
+results/**/*.safetensors
+*.png
+!docs/**/*.png
+!results/**/summary*.png
+
+# Models / caches
+*.ckpt
+*.bin
+hf_cache/
+
+# OS
+.DS_Store

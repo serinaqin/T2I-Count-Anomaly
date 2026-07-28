@@ -1,0 +1,16 @@
+# Core (versions pinned loosely; Colab provides torch/CUDA)
+diffusers>=0.30
+transformers>=4.44
+accelerate>=0.33
+torch>=2.2
+safetensors
+numpy
+pandas
+scikit-learn
+matplotlib
+Pillow
+tqdm
+
+# Scoring / detection (installed in notebooks as needed; listed for reference)
+# groundingdino-py
+# CountGD is used via its own repo/checkpoint (see notebooks/00_setup_smoke.ipynb)
