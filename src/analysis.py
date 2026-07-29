@@ -1,3 +1,8 @@
+import pandas as pd
+from sklearn.linear_model import LinearRegression
+from sklearn.metrics import r2_score
+
+
 def variance_explained(df, value: str, factor: str) -> float:
     grand = df[value].mean()
     ss_total = ((df[value] - grand) ** 2).sum()
@@ -15,3 +20,36 @@ def noise_vs_text_decomposition(df, value="realized_count",
         "noise_var_explained": variance_explained(df, value, noise),
         "text_var_explained": variance_explained(df, value, text),
     }
+
+
+def text_responsiveness(df, realized="realized_count", requested="count") -> dict:
+    """OLS of realized count on requested count. slope~1 => text controls the
+    count; slope~0 => text is ignored (count set elsewhere, e.g. the noise)."""
+    x = df[[requested]].to_numpy(float)
+    y = df[realized].to_numpy(float)
+    reg = LinearRegression().fit(x, y)
+    return {"slope": float(reg.coef_[0]),
+            "r2": float(r2_score(y, reg.predict(x)))}
+
+
+def count_variance_decomposition(df, value="realized_count",
+                                 factors=("seed", "count", "obj")) -> dict:
+    """Marginal eta^2 per factor: fraction of realized-count variance that
+    aligns with each factor. Not orthogonal (factors can share variance) —
+    read as relative importance, not an additive partition."""
+    return {f: variance_explained(df, value, f) for f in factors}
+
+
+def per_seed_summary(df, value="realized_count", seed="seed") -> pd.DataFrame:
+    """Per-seed mean and std of realized count. A seed with low std across
+    different prompts has a persistent 'preferred count' (noise-driven)."""
+    g = df.groupby(seed)[value]
+    return pd.DataFrame({"mean": g.mean(), "std": g.std(ddof=0)})
+
+
+def flag_degenerate(df, max_requested, factor=3, value="realized_count"):
+    """Mark images whose realized count is implausibly large (e.g. collage
+    blow-ups) as degenerate, without deleting them."""
+    out = df.copy()
+    out["degenerate"] = out[value] > factor * max_requested
+    return out
