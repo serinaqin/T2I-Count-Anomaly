@@ -18,3 +18,15 @@ def fit_eval_magnitude(X, y, seed: int = 0) -> dict:
         X, y, test_size=0.3, random_state=seed)
     reg = LinearRegression().fit(Xtr, ytr)
     return {"r2": float(r2_score(yte, reg.predict(Xte)))}
+
+
+def decodability_map(features, y, mode="magnitude") -> dict:
+    """Per site, how decodable is y from that site's (n x C) feature matrix.
+    mode='magnitude' -> R2 (linear); mode='classify' -> balanced accuracy."""
+    out = {}
+    for site, X in features.items():
+        if mode == "classify":
+            out[site] = fit_eval_classifier(X, y)["bal_acc"]
+        else:
+            out[site] = fit_eval_magnitude(X, y)["r2"]
+    return out

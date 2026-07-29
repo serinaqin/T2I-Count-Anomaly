@@ -1,0 +1,7 @@
+# Phase 2 signal-trace: probe count decodability across layers x timesteps.
+counts: [1, 2, 3, 4, 5]
+objects: [cat, dog]
+seeds: [0, 1, 2, 3, 4, 5, 6, 7]   # 5 x 2 x 8 = 80 images
+num_inference_steps: 30
+capture_steps: [6, 15, 29]         # early / mid / late (read via raw yaml)
+score_threshold: 0.3

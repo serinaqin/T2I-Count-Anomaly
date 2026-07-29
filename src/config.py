@@ -8,6 +8,7 @@ class ExperimentConfig:
     seeds: list
     num_inference_steps: int
     score_threshold: float
+    capture_steps: list = None  # timesteps to snapshot activations (Phase 2+)
 
 
 def load_config(path: str) -> ExperimentConfig:
