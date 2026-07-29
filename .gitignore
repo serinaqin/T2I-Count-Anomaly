@@ -22,3 +22,6 @@ hf_cache/
 
 # OS
 .DS_Store
+
+# SDD process scratch (ledgers, review packages) — never part of the project
+.superpowers/
