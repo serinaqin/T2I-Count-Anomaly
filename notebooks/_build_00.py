@@ -61,17 +61,54 @@ cells.append(nbf.v4.new_code_cell(
 
 cells.append(nbf.v4.new_code_cell(
     "# 6. Generate the pilot, score each image with the detector oracle\n"
+    "# (detector now applies non-max suppression to drop duplicate boxes)\n"
+    "from src.scoring import count_from_detections\n"
     "det = Detector()\n"
+    "records = []  # (spec, image, detections, count) kept for eyeballing\n"
     "rows = []\n"
     "for p in grid:\n"
     "    img = generate(pipe, p.text, p.seed, cfg.num_inference_steps)\n"
-    "    n = count_objects(det, img, p.obj, cfg.score_threshold)\n"
+    "    dets = det.detect(img, [p.obj])\n"
+    "    n = count_from_detections(dets, p.obj, cfg.score_threshold)\n"
+    "    records.append((p, img, dets, n))\n"
     "    rows.append({'text': p.text, 'obj': p.obj, 'count': p.count,\n"
     "                 'seed': p.seed, 'realized_count': n})\n"
     "df = pd.DataFrame(rows)\n"
     "os.makedirs('results', exist_ok=True)\n"
     "df.to_csv('results/smoke_summary.csv', index=False)\n"
     "df"))
+
+cells.append(nbf.v4.new_markdown_cell(
+    "### Eyeball the detector\n"
+    "Each image with the detector's boxes drawn on it, titled "
+    "`prompt | asked N got M`. Check: do the red boxes land on distinct "
+    "objects, and does M match what you see? This is how we judge whether the "
+    "detector is trustworthy before scaling up."))
+
+cells.append(nbf.v4.new_code_cell(
+    "import matplotlib.pyplot as plt\n"
+    "from PIL import ImageDraw\n"
+    "n = len(records)\n"
+    "cols = 3\n"
+    "nrows = (n + cols - 1) // cols\n"
+    "fig, axes = plt.subplots(nrows, cols, figsize=(cols * 4, nrows * 4))\n"
+    "axes = axes.flatten()\n"
+    "for ax, (p, img, dets, cnt) in zip(axes, records):\n"
+    "    im = img.copy()\n"
+    "    draw = ImageDraw.Draw(im)\n"
+    "    for d in dets:\n"
+    "        if d['score'] >= cfg.score_threshold:\n"
+    "            draw.rectangle(d['box'], outline=(255, 0, 0), width=5)\n"
+    "    ax.imshow(im)\n"
+    "    ax.axis('off')\n"
+    "    mark = 'OK' if cnt == p.count else 'X'\n"
+    "    ax.set_title(f\"{p.text} | asked {p.count} got {cnt}  {mark}\",\n"
+    "                 fontsize=10)\n"
+    "for ax in axes[n:]:\n"
+    "    ax.axis('off')\n"
+    "plt.tight_layout()\n"
+    "plt.savefig('results/smoke_eyeball.png', dpi=90, bbox_inches='tight')\n"
+    "plt.show()"))
 
 cells.append(nbf.v4.new_code_cell(
     "# 7. Confirm activation hooks fire during generation (capture 3 sites, 2 steps)\n"

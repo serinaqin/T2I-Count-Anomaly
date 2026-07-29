@@ -1,4 +1,4 @@
-from src.scoring import count_from_detections
+from src.scoring import count_from_detections, nms
 
 
 def count_objects(detector, image, object_label, score_threshold=0.3) -> int:
@@ -7,12 +7,18 @@ def count_objects(detector, image, object_label, score_threshold=0.3) -> int:
 
 
 class Detector:
-    """GroundingDINO wrapper. Loads lazily; GPU only (used in Colab)."""
+    """GroundingDINO wrapper. Loads lazily; GPU only (used in Colab).
 
-    def __init__(self, device="cuda", box_threshold=0.3, text_threshold=0.25):
+    Applies non-max suppression to returned detections so overlapping
+    duplicate boxes don't inflate the count.
+    """
+
+    def __init__(self, device="cuda", box_threshold=0.3, text_threshold=0.25,
+                 iou_threshold=0.5):
         self.device = device
         self.box_threshold = box_threshold
         self.text_threshold = text_threshold
+        self.iou_threshold = iou_threshold
         self._model = None
         self._processor = None
 
@@ -50,4 +56,4 @@ class Detector:
             dets.append({"label": str(label).strip().lower(),
                          "score": float(score),
                          "box": [float(x) for x in box]})
-        return dets
+        return nms(dets, iou_threshold=self.iou_threshold)
