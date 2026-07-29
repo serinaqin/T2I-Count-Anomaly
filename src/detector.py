@@ -27,18 +27,21 @@ class Detector:
 
     def detect(self, image, labels):
         self._ensure_loaded()
-        import torch
+        import torch, inspect
         text = ". ".join(labels) + "."
         inputs = self._processor(images=image, text=text,
                                  return_tensors="pt").to(self.device)
         with torch.no_grad():
             outputs = self._model(**inputs)
-        results = self._processor.post_process_grounded_object_detection(
-            outputs, inputs.input_ids,
-            box_threshold=self.box_threshold,
-            text_threshold=self.text_threshold,
-            target_sizes=[image.size[::-1]],
-        )[0]
+        # transformers renamed box_threshold -> threshold (>=4.51); support both.
+        pp = self._processor.post_process_grounded_object_detection
+        params = inspect.signature(pp).parameters
+        kwargs = {"target_sizes": [image.size[::-1]]}
+        kwargs["threshold" if "threshold" in params else "box_threshold"] = \
+            self.box_threshold
+        if "text_threshold" in params:
+            kwargs["text_threshold"] = self.text_threshold
+        results = pp(outputs, inputs.input_ids, **kwargs)[0]
         # transformers renamed "labels" -> "text_labels" (>=4.51); support both.
         labels_out = results.get("text_labels", results.get("labels"))
         dets = []
