@@ -91,3 +91,43 @@ def generate_and_capture(pipe, prompt, seed, sites, capture_steps,
                    num_inference_steps=num_inference_steps,
                    callback_on_step_end=cb).images[0]
     return img, store
+
+
+def raw_reducer(act, cond_index=1):
+    """Reducer that keeps the full activation tensor (on CPU) for injection."""
+    return act.detach().cpu()
+
+
+def make_patch_hook(site, patch_map, state):
+    """Forward hook that replaces a module's output with a donor tensor when
+    the current step (state['step']) is a patch step for this site."""
+    def hook(_m, _i, out):
+        st = state["step"]
+        if st in patch_map and site in patch_map[st]:
+            return patch_map[st][site].to(out.dtype).to(out.device)
+        return None
+    return hook
+
+
+def generate_with_patch(pipe, prompt, seed, patch_map, num_inference_steps=30):
+    """Generate `prompt` while injecting donor activations: at each step in
+    patch_map, replace the listed sites' outputs with the stored tensors.
+    patch_map = {step: {site: tensor}}. GPU only."""
+    sites = {s for d in patch_map.values() for s in d}
+    modmap = dict(pipe.unet.named_modules())
+    state = {"step": 0}
+    handles = [modmap[s].register_forward_hook(make_patch_hook(s, patch_map, state))
+               for s in sites]
+    g = torch.Generator(device=pipe.device).manual_seed(seed)
+
+    def cb(_p, step, _t, kw):
+        state["step"] = step + 1
+        return kw
+    try:
+        img = pipe(prompt, generator=g,
+                   num_inference_steps=num_inference_steps,
+                   callback_on_step_end=cb).images[0]
+    finally:
+        for h in handles:
+            h.remove()
+    return img

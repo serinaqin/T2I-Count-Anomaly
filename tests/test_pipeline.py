@@ -23,6 +23,23 @@ def test_pool_activation_cond_half_mean():
     assert out.shape == (2,)
     assert np.allclose(out, [5.0, 5.0])
 
+
+def test_raw_reducer_returns_full_tensor():
+    from src.pipeline import raw_reducer
+    a = torch.arange(6).reshape(1, 2, 3).float()
+    assert raw_reducer(a).shape == (1, 2, 3)
+
+
+def test_make_patch_hook_replaces_at_target_step():
+    from src.pipeline import make_patch_hook
+    donor = torch.ones(1, 3)
+    state = {"step": 5}
+    hook = make_patch_hook("x", {5: {"x": donor}}, state)
+    out = torch.zeros(1, 3)
+    assert torch.equal(hook(None, (out,), out), donor)   # patched at step 5
+    state["step"] = 4
+    assert hook(None, (out,), out) is None               # untouched otherwise
+
 class Attn(nn.Module):
     def __init__(self): super().__init__(); self.lin = nn.Linear(4, 4)
     def forward(self, x): return self.lin(x)

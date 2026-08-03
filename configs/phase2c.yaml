@@ -1,0 +1,10 @@
+# Phase 2c causal patch: inject a donor count's up-block attn1 activations
+# into a source-count run and measure whether the OUTPUT count moves.
+counts: [2, 5]                 # source/donor counts (schema placeholder)
+objects: [cat]
+seeds: [0, 1, 2, 3, 4, 5, 6, 7]
+num_inference_steps: 30
+score_threshold: 0.3
+pairs: [[2, 5], [5, 2]]        # (source, donor): inject donor's attn1 into source
+patch_steps: [6, 10, 15]       # commitment window from Phase 2/2b
+patch_block: up_blocks.0       # patch this block's self-attention (image-side)
