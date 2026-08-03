@@ -10,6 +10,7 @@ scikit-learn
 matplotlib
 Pillow
 tqdm
+scipy
 pyyaml
 
 # Scoring / detection (installed in notebooks as needed; listed for reference)

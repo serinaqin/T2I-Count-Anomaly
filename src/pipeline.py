@@ -71,16 +71,20 @@ def pool_activation(act, cond_index=1):
 
 
 def generate_and_capture(pipe, prompt, seed, sites, capture_steps,
-                         num_inference_steps=30, cond_index=1):
-    """One generation; snapshot pooled activations at each step in
-    capture_steps. Returns (image, {step: {site: vec}}). GPU only."""
+                         num_inference_steps=30, cond_index=1, reducer=None):
+    """One generation; snapshot reduced activations at each step in
+    capture_steps. `reducer(act, cond_index)` defaults to pool_activation
+    (channel vector); pass featuremap_saliency for spatial maps. Returns
+    (image, {step: {site: reduced}}). GPU only."""
+    if reducer is None:
+        reducer = pool_activation
     g = torch.Generator(device=pipe.device).manual_seed(seed)
     store = {}
     targets = set(capture_steps)
     with ActivationCapture(pipe.unet, sites) as cap:
         def cb(_p, step, _timestep, kw):
             if step in targets:
-                store[step] = {s: pool_activation(cap.acts[s], cond_index)
+                store[step] = {s: reducer(cap.acts[s], cond_index)
                                for s in cap.acts}
             return kw
         img = pipe(prompt, generator=g,

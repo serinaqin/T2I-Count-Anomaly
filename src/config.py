@@ -13,6 +13,8 @@ class ExperimentConfig:
 
 def load_config(path: str) -> ExperimentConfig:
     import yaml
+    from dataclasses import fields
     with open(path) as f:
         d = yaml.safe_load(f)
-    return ExperimentConfig(**d)
+    known = {f.name for f in fields(ExperimentConfig)}
+    return ExperimentConfig(**{k: v for k, v in d.items() if k in known})
