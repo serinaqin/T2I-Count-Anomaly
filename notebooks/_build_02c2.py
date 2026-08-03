@@ -1,0 +1,138 @@
+"""Generate notebooks/02c2_causal_patch_sweep.ipynb (Phase 2c-v2).
+
+Phase 2c found up-block self-attn (mid steps) does NOT causally control the
+count. This sweeps the patch over (block x attention-type x step-window) to
+find where injecting the donor DOES move the output count. Thin Colab driver.
+
+Run: python notebooks/_build_02c2.py
+"""
+import nbformat as nbf
+
+nb = nbf.v4.new_notebook()
+c = []
+
+c.append(nbf.v4.new_markdown_cell(
+    "# Phase 2c-v2 — Causal patch SWEEP\n"
+    "Phase 2c: patching up-block self-attention at mid steps did NOT move the "
+    "count (readout != control). Here we sweep the patch over **attention type "
+    "(attn1 image-side vs attn2 matching)**, **timing (early 0-5 vs mid)**, and "
+    "**block (up vs mid)** to find where injecting the donor actually moves the "
+    "output count. Whichever config makes the count follow the donor = the "
+    "causal control site.\n\n**Runtime:** GPU (~25-35 min)."))
+
+c.append(nbf.v4.new_code_cell(
+    "import os\n"
+    "if not os.path.exists('src'):\n"
+    "    !git clone https://github.com/serinaqin/T2I-Count-Anomaly.git\n"
+    "    %cd T2I-Count-Anomaly\n"
+    "!pip install -q -r requirements.txt\n"
+    "!pip install -q pytest groundingdino-py"))
+
+c.append(nbf.v4.new_code_cell(
+    "import sys; sys.path.insert(0, '.')\n"
+    "import numpy as np, pandas as pd, os, yaml\n"
+    "from src.prompts import build_prompt\n"
+    "from src.pipeline import (load_sdxl, generate, catalog_attention_sites,\n"
+    "                          generate_and_capture, raw_reducer, generate_with_patch)\n"
+    "from src.detector import Detector\n"
+    "from src.scoring import count_from_detections\n"
+    "from src.config import load_config"))
+
+c.append(nbf.v4.new_code_cell(
+    "cfg = load_config('configs/phase2c2.yaml')\n"
+    "raw = yaml.safe_load(open('configs/phase2c2.yaml'))\n"
+    "pairs, sweep = raw['pairs'], raw['sweep']\n"
+    "cap_blocks, cap_steps = raw['capture_blocks'], raw['capture_steps']\n"
+    "obj = cfg.objects[0]\n"
+    "for s in sweep: print(s)"))
+
+c.append(nbf.v4.new_code_cell(
+    "pipe = load_sdxl()\n"
+    "det = Detector()\n"
+    "# capture attn1 AND attn2 (first transformer block) in the capture blocks\n"
+    "cap_sites = [s for s in catalog_attention_sites(pipe.unet)\n"
+    "             if 'transformer_blocks.0.' in s\n"
+    "             and (s.endswith('attn1') or s.endswith('attn2'))\n"
+    "             and any(b in s for b in cap_blocks)]\n"
+    "print(len(cap_sites), 'capture sites:'); print(cap_sites)\n"
+    "def cnt(img):\n"
+    "    return count_from_detections(det.detect(img, [obj]), obj, cfg.score_threshold)\n"
+    "def sites_for(entry):\n"
+    "    suf = ('attn1', 'attn2') if entry['attn'] == 'both' else (entry['attn'],)\n"
+    "    return [s for s in cap_sites if entry['block'] in s and s.endswith(suf)]"))
+
+c.append(nbf.v4.new_code_cell(
+    "# Capture donor once per (pair, seed) over the superset; patch each subset.\n"
+    "rows = []\n"
+    "for src, dnr in pairs:\n"
+    "    sp, dp = build_prompt(src, obj), build_prompt(dnr, obj)\n"
+    "    direction = 'up' if src < dnr else 'down'\n"
+    "    for seed in cfg.seeds:\n"
+    "        _, snaps = generate_and_capture(pipe, dp, seed, cap_sites, cap_steps,\n"
+    "                                        cfg.num_inference_steps, reducer=raw_reducer)\n"
+    "        c_base = cnt(generate(pipe, sp, seed, cfg.num_inference_steps))\n"
+    "        c_donor = cnt(generate(pipe, dp, seed, cfg.num_inference_steps))\n"
+    "        for e in sweep:\n"
+    "            es, esite = set(e['steps']), set(sites_for(e))\n"
+    "            pm = {st: {s: snaps[st][s] for s in snaps[st] if s in esite}\n"
+    "                  for st in snaps if st in es}\n"
+    "            c_patch = cnt(generate_with_patch(pipe, sp, seed, pm, cfg.num_inference_steps))\n"
+    "            rows.append({'config': e['name'], 'direction': direction, 'seed': seed,\n"
+    "                         'c_donor': c_donor, 'c_base': c_base, 'c_patch': c_patch,\n"
+    "                         'delta': c_patch - c_base})\n"
+    "        print(f'{direction} seed {seed} done')\n"
+    "df = pd.DataFrame(rows)\n"
+    "os.makedirs('results', exist_ok=True)\n"
+    "df.to_csv('results/phase2c2_sweep.csv', index=False)\n"
+    "df.head(12)"))
+
+c.append(nbf.v4.new_code_cell(
+    "# Donor-directed effect: up expects delta>0, down expects delta<0.\n"
+    "def signed(g, direction):\n"
+    "    return g['delta'] if direction == 'up' else -g['delta']\n"
+    "summ = []\n"
+    "for (config, direction), g in df.groupby(['config', 'direction']):\n"
+    "    s = signed(g, direction)\n"
+    "    summ.append({'config': config, 'direction': direction,\n"
+    "                 'donor_directed_delta': s.mean(),\n"
+    "                 'frac_expected': (s > 0).mean(),\n"
+    "                 'base': g.c_base.mean(), 'patch': g.c_patch.mean(),\n"
+    "                 'donor': g.c_donor.mean()})\n"
+    "summ = pd.DataFrame(summ).sort_values('donor_directed_delta', ascending=False)\n"
+    "summ"))
+
+c.append(nbf.v4.new_code_cell(
+    "# Bar: mean donor-directed delta per config, split by direction.\n"
+    "import matplotlib.pyplot as plt\n"
+    "piv = summ.pivot(index='config', columns='direction', values='donor_directed_delta')\n"
+    "ax = piv.plot(kind='bar', figsize=(9, 5))\n"
+    "ax.axhline(0, color='k', lw=0.8)\n"
+    "ax.set_ylabel('donor-directed delta  (positive = moved toward donor)')\n"
+    "ax.set_title('Causal patch sweep: which site/timing controls the count?')\n"
+    "plt.tight_layout()\n"
+    "plt.savefig('results/phase2c2_sweep.png', dpi=100, bbox_inches='tight'); plt.show()"))
+
+c.append(nbf.v4.new_markdown_cell(
+    "## How to read this\n"
+    "`donor_directed_delta` = how far the patched count moved TOWARD the donor "
+    "(positive good, in BOTH directions). `frac_expected` = fraction of seeds "
+    "that moved the right way.\n\n"
+    "- **A config with clearly positive donor-directed delta in BOTH up and down** "
+    "= the causal control site/timing. That (block, attn-type, steps) is where "
+    "the count is set -> Phase 4 mitigation target.\n"
+    "- **attn2 configs win** = the text->image MATCHING (cross-attention) sets "
+    "the count (your leading hypothesis).\n"
+    "- **early-step configs win** = the count is committed at high noise, early; "
+    "mid-step patching was simply too late.\n"
+    "- **Nothing moves it (all ~0)** = the count is not controlled anywhere in "
+    "these blocks/steps -> it is locked by the INITIAL NOISE; next test is a "
+    "noise-swap (change x_T, keep prompt) to confirm the count follows the seed."))
+
+nb["cells"] = c
+nb["metadata"] = {"accelerator": "GPU", "colab": {"provenance": []},
+                  "kernelspec": {"name": "python3", "display_name": "Python 3"}}
+
+import os
+out = os.path.join(os.path.dirname(__file__), "02c2_causal_patch_sweep.ipynb")
+nbf.write(nb, out)
+print("wrote", out)
