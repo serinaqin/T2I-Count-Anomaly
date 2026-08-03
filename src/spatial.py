@@ -1,5 +1,6 @@
 import numpy as np
 from scipy import ndimage
+from scipy.ndimage import gaussian_filter, maximum_filter
 
 
 def featuremap_saliency(act, cond_index=1):
@@ -28,3 +29,26 @@ def saliency_to_instance_count(sal, thresh=0.5, min_size=1) -> int:
         return 0
     sizes = ndimage.sum(mask, labeled, index=range(1, n + 1))
     return int((sizes >= min_size).sum())
+
+
+def find_peaks(sal, sigma=1.0, min_distance=2, thresh_rel=0.5):
+    """Local maxima of a Gaussian-smoothed saliency map, kept if above
+    thresh_rel * max. Counts distinct object centers even when their blobs
+    merge (two adjacent cats = two peaks in one bright region) and ignores
+    texture specks. Returns an array of (row, col) peak centers."""
+    s = gaussian_filter(np.asarray(sal, float), sigma)
+    if s.max() <= 0:
+        return np.empty((0, 2), int)
+    mx = maximum_filter(s, size=2 * min_distance + 1, mode="nearest")
+    peaks = (s == mx) & (s >= thresh_rel * s.max())
+    labeled, n = ndimage.label(peaks)
+    if n == 0:
+        return np.empty((0, 2), int)
+    centers = ndimage.center_of_mass(peaks, labeled, range(1, n + 1))
+    return np.array([[int(round(r)), int(round(c))] for r, c in centers])
+
+
+def count_peaks(sal, sigma=1.0, min_distance=2, thresh_rel=0.5) -> int:
+    """Number of object-center peaks in the saliency map (calibrated instance
+    count; robust to merged objects and texture, unlike blob counting)."""
+    return len(find_peaks(sal, sigma, min_distance, thresh_rel))

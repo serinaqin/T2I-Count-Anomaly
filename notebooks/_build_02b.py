@@ -34,16 +34,18 @@ c.append(nbf.v4.new_code_cell(
     "from src.prompts import generate_grid\n"
     "from src.pipeline import (load_sdxl, catalog_attention_sites,\n"
     "                          select_probe_sites, generate_and_capture)\n"
-    "from src.spatial import featuremap_saliency, saliency_to_instance_count\n"
+    "from src.spatial import featuremap_saliency, count_peaks, find_peaks\n"
     "from src.detector import Detector\n"
     "from src.scoring import count_from_detections\n"
     "from src.config import load_config"))
 
 c.append(nbf.v4.new_code_cell(
     "cfg = load_config('configs/phase2b.yaml')\n"
-    "thr_s = yaml.safe_load(open('configs/phase2b.yaml'))['saliency_thresh']\n"
+    "raw = yaml.safe_load(open('configs/phase2b.yaml'))\n"
+    "PK = dict(sigma=raw['peak_sigma'], min_distance=raw['peak_min_distance'],\n"
+    "          thresh_rel=raw['peak_thresh_rel'])\n"
     "grid = generate_grid(cfg.counts, cfg.objects, cfg.seeds)\n"
-    "print(len(grid), 'images; steps', cfg.capture_steps, '; saliency thr', thr_s)"))
+    "print(len(grid), 'images; steps', cfg.capture_steps, '; peak params', PK)"))
 
 c.append(nbf.v4.new_code_cell(
     "pipe = load_sdxl()\n"
@@ -76,10 +78,10 @@ c.append(nbf.v4.new_code_cell(
     "df.head()"))
 
 c.append(nbf.v4.new_code_cell(
-    "# Internal instance count = mean blob-count over up-block sites, per step.\n"
+    "# Internal instance count = mean PEAK-count over up-block sites, per step.\n"
     "req = df['count'].to_numpy(float); ren = df['rendered'].to_numpy(float)\n"
     "def inst_at(st, s):\n"
-    "    return np.array([saliency_to_instance_count(m, thr_s) if m is not None\n"
+    "    return np.array([count_peaks(m, **PK) if m is not None\n"
     "                     else np.nan for m in sal_store[st][s]])\n"
     "inst = {st: np.nanmean(np.vstack([inst_at(st, s) for s in sites]), axis=0)\n"
     "        for st in cfg.capture_steps}\n"
@@ -115,11 +117,13 @@ c.append(nbf.v4.new_code_cell(
     "fig, axes = plt.subplots(len(pick), 2, figsize=(7, 3 * len(pick)))\n"
     "for row, idx in enumerate(pick):\n"
     "    sal = sal_store[st0][site0][idx]\n"
-    "    ic = saliency_to_instance_count(sal, thr_s) if sal is not None else -1\n"
+    "    pk = find_peaks(sal, **PK) if sal is not None else np.empty((0, 2))\n"
     "    axes[row, 0].imshow(images[idx]); axes[row, 0].axis('off')\n"
     "    axes[row, 0].set_title(f\"asked {df['count'][idx]} rendered {df['rendered'][idx]}\", fontsize=9)\n"
     "    axes[row, 1].imshow(sal, cmap='magma'); axes[row, 1].axis('off')\n"
-    "    axes[row, 1].set_title(f'saliency @ {site0.split(\".\")[1]} step {st0} | blobs={ic}', fontsize=8)\n"
+    "    if len(pk):\n"
+    "        axes[row, 1].scatter(pk[:, 1], pk[:, 0], c='cyan', s=60, marker='x')\n"
+    "    axes[row, 1].set_title(f'saliency+peaks @ {site0.split(\".\")[1]} step {st0} | peaks={len(pk)}', fontsize=8)\n"
     "plt.tight_layout()\n"
     "plt.savefig('results/phase2b_eyeball.png', dpi=90, bbox_inches='tight'); plt.show()"))
 

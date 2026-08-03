@@ -6,3 +6,7 @@ num_inference_steps: 30
 capture_steps: [3, 6, 10, 15, 22, 29]   # trajectory: set-early vs drift
 score_threshold: 0.3
 saliency_thresh: 0.5                      # read via raw yaml; tune by eyeball
+# Peak-based instance count (calibrated readout — tune these by the eyeball):
+peak_sigma: 1.0                          # Gaussian smoothing of the saliency
+peak_min_distance: 2                     # min separation between object peaks
+peak_thresh_rel: 0.5                     # keep peaks >= this fraction of the map max
