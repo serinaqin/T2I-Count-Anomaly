@@ -1,0 +1,12 @@
+# Phase 4: donor-free count steering at the causal site (up_blocks.0 attn1, early).
+counts: [1, 2, 3, 4, 5]
+objects: [cat]
+seeds: [0, 1, 2, 3, 4, 5]        # training seeds for direction estimation
+num_inference_steps: 30
+score_threshold: 0.3
+patch_block: up_blocks.0
+patch_attn: attn1
+steer_steps: [0, 1, 2, 3, 4, 5]
+alphas: [-2, -1, 0, 1, 2]         # dose-response multipliers of the direction
+eval_counts: [2, 3]
+eval_seeds: [6, 7, 8, 9]          # held-out seeds for the dose-response

@@ -131,3 +131,39 @@ def generate_with_patch(pipe, prompt, seed, patch_map, num_inference_steps=30):
         for h in handles:
             h.remove()
     return img
+
+
+def make_steer_hook(site, directions, alpha, steps, state):
+    """Forward hook that ADDS alpha*direction to a module's output at the steer
+    steps (a donor-free count knob, vs make_patch_hook which replaces)."""
+    def hook(_m, _i, out):
+        st = state["step"]
+        if st in steps and st in directions and site in directions[st]:
+            d = directions[st][site].to(out.dtype).to(out.device)
+            return out + alpha * d
+        return None
+    return hook
+
+
+def generate_with_steer(pipe, prompt, seed, directions, alpha, steps,
+                        num_inference_steps=30):
+    """Generate while adding alpha*directions[step][site] at the steer steps.
+    directions = {step: {site: (C,) tensor}}. GPU only."""
+    steps = set(steps)
+    sites = {s for st in directions for s in directions[st]}
+    modmap = dict(pipe.unet.named_modules())
+    state = {"step": 0}
+    handles = [modmap[s].register_forward_hook(
+        make_steer_hook(s, directions, alpha, steps, state)) for s in sites]
+    g = torch.Generator(device=pipe.device).manual_seed(seed)
+
+    def cb(_p, step, _t, kw):
+        state["step"] = step + 1
+        return kw
+    try:
+        img = pipe(prompt, generator=g, num_inference_steps=num_inference_steps,
+                   callback_on_step_end=cb).images[0]
+    finally:
+        for h in handles:
+            h.remove()
+    return img

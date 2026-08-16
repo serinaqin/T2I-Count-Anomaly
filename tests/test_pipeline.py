@@ -40,6 +40,18 @@ def test_make_patch_hook_replaces_at_target_step():
     state["step"] = 4
     assert hook(None, (out,), out) is None               # untouched otherwise
 
+
+def test_make_steer_hook_adds_direction():
+    from src.pipeline import make_steer_hook
+    d = torch.tensor([1.0, 2.0, 3.0])
+    state = {"step": 2}
+    hook = make_steer_hook("x", {2: {"x": d}}, alpha=2.0, steps={2}, state=state)
+    out = torch.zeros(1, 4, 3)
+    res = hook(None, (out,), out)
+    assert torch.allclose(res, (2.0 * d).expand(1, 4, 3))
+    state["step"] = 1
+    assert hook(None, (out,), out) is None
+
 class Attn(nn.Module):
     def __init__(self): super().__init__(); self.lin = nn.Linear(4, 4)
     def forward(self, x): return self.lin(x)

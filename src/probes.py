@@ -20,6 +20,18 @@ def fit_eval_magnitude(X, y, seed: int = 0) -> dict:
     return {"r2": float(r2_score(yte, reg.predict(Xte)))}
 
 
+def count_direction(X, y):
+    """Difference-of-means 'more objects' direction: mean(high-count samples)
+    - mean(low-count samples), split at the median count. A donor-free steering
+    vector for the count."""
+    X, y = np.asarray(X, float), np.asarray(y, float)
+    thr = np.median(y)
+    hi, lo = y > thr, y <= thr
+    if hi.sum() == 0 or lo.sum() == 0:
+        return np.zeros(X.shape[1])
+    return X[hi].mean(0) - X[lo].mean(0)
+
+
 def decodability_map(features, y, mode="magnitude") -> dict:
     """Per site, how decodable is y from that site's (n x C) feature matrix.
     mode='magnitude' -> R2 (linear); mode='classify' -> balanced accuracy."""

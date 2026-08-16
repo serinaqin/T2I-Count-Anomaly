@@ -1,5 +1,6 @@
 import numpy as np
-from src.probes import fit_eval_classifier, fit_eval_magnitude, decodability_map
+from src.probes import (fit_eval_classifier, fit_eval_magnitude,
+                        decodability_map, count_direction)
 
 def test_classifier_separable():
     rng = np.random.default_rng(0)
@@ -23,3 +24,9 @@ def test_decodability_map_ranks_sites():
     m = decodability_map({"good": good, "bad": bad}, y, mode="magnitude")
     assert m["good"] > 0.9
     assert m["bad"] < 0.3
+
+def test_count_direction_points_to_high():
+    y = np.array([1, 1, 5, 5], float)
+    X = np.zeros((4, 3)); X[y > 3, 0] = 5.0     # high-count samples shifted ch0
+    d = count_direction(X, y)
+    assert d[0] > 4 and abs(d[1]) < 1e-6
