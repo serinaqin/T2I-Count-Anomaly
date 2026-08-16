@@ -71,7 +71,7 @@ c.append(nbf.v4.new_code_cell(
     "        rgb = vae.decode(z / sf).sample.float().mean(dim=(0, 2, 3))\n"
     "        cols.append((rgb - rgb0) / probe)\n"
     "    M = torch.stack(cols).cpu()                       # (4 channels, 3 RGB)\n"
-    "    a = torch.linalg.lstsq(M.t(), torch.ones(3)).solution   # a @ M = gray\n"
+    "    a = torch.linalg.pinv(M.t()) @ torch.ones(3)      # min-norm a @ M = gray\n"
     "    a = a / a.norm() * (4 ** 0.5)                     # match L2 of ones(4)\n"
     "    return a * raw['gray_amp']\n"
     "gray = gray_direction()\n"
