@@ -1,0 +1,14 @@
+# Phase 4b: cross-seed template transfer. Build one reference donor per count N
+# (early up0 attn1 activations), inject into DIFFERENT recipient seeds, and test
+# whether the output count follows the template regardless of recipient.
+counts: [1, 2, 3, 4, 5]                  # template target counts
+objects: [cat]
+seeds: [0]                               # unused (see template_search_seeds / recipient_seeds)
+num_inference_steps: 30
+score_threshold: 0.3
+patch_block: up_blocks.0
+patch_attn: attn1
+patch_steps: [0, 1, 2, 3, 4, 5]
+template_search_seeds: [0, 1, 2, 3, 4, 5, 6, 7]  # search for a clean donor per N
+recipient_prompt_count: 2                 # recipient's own prompt ("two cats")
+recipient_seeds: [20, 21, 22, 23, 24]     # held-out recipient seeds
