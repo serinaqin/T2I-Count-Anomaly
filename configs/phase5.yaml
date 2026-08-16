@@ -1,0 +1,11 @@
+# Phase 5: count-aware noise injection (training-free mitigation at the latent).
+counts: [1, 2, 3, 4, 5]
+objects: [cat]
+seeds: [0, 1, 2, 3, 4]
+num_inference_steps: 30
+score_threshold: 0.3
+schemes: [uniform_scaled, fixed, gaussian]
+gamma: 0.1       # uniform_scaled: scale in-box noise
+omega: 0.3       # gaussian: bump amplitude
+alpha: 0.8       # gaussian: bump spread (fraction of box half-size)
+box_fill: 0.6    # box size as fraction of its grid cell
