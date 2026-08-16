@@ -1,0 +1,17 @@
+# Phase 2c-v3: confirm the causal site (up_blocks.0 attn1, early steps) with an
+# image eyeball + robustness, and pinpoint WHEN the count locks (fine timing).
+counts: [2, 5]
+objects: [cat, dog]
+seeds: [0, 1, 2, 3, 4, 5]
+num_inference_steps: 30
+score_threshold: 0.3
+pairs: [[2, 5], [5, 2]]
+patch_block: up_blocks.0
+patch_attn: attn1
+capture_steps: [0, 1, 2, 3, 4, 5]     # the causal window to dissect
+# Part A (eyeball + robustness): full-window patch, both objects
+eyeball_seeds: [0, 1, 2]
+# Part B (fine timing): cumulative early windows, one object
+timing_object: cat
+timing_seeds: [0, 1, 2, 3]
+cumulative_windows: [[0], [0, 1], [0, 1, 2], [0, 1, 2, 3], [0, 1, 2, 3, 4], [0, 1, 2, 3, 4, 5]]
