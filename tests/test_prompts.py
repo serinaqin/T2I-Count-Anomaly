@@ -15,9 +15,13 @@ def test_pluralize_edge_cases():
 
 def test_count_out_of_range_raises():
     with pytest.raises(ValueError):
-        build_prompt(8, "cat")
+        build_prompt(11, "cat")
     with pytest.raises(ValueError):
         build_prompt(0, "cat")
+
+def test_high_counts_supported():
+    assert build_prompt(8, "cat") == "eight cats"
+    assert build_prompt(10, "dog") == "ten dogs"
 
 def test_generate_grid_shape_and_content():
     counts, objects, seeds = [1, 2], ["cat", "bus"], [0, 1, 2]
@@ -31,4 +35,4 @@ def test_generate_grid_shape_and_content():
 
 def test_default_objects_are_seven_plus_and_countable():
     assert len(DEFAULT_OBJECTS) >= 7
-    assert len(NUMBER_WORDS) == 7
+    assert len(NUMBER_WORDS) == 10

@@ -1,7 +1,7 @@
 from dataclasses import dataclass
 
-NUMBER_WORDS = {1: "one", 2: "two", 3: "three", 4: "four",
-                5: "five", 6: "six", 7: "seven"}
+NUMBER_WORDS = {1: "one", 2: "two", 3: "three", 4: "four", 5: "five",
+                6: "six", 7: "seven", 8: "eight", 9: "nine", 10: "ten"}
 
 DEFAULT_OBJECTS = ["apple", "cat", "car", "bird", "bottle",
                    "chair", "cup", "dog", "banana", "clock"]
@@ -17,7 +17,7 @@ def pluralize(noun: str) -> str:
 
 def build_prompt(count: int, obj: str) -> str:
     if count not in NUMBER_WORDS:
-        raise ValueError(f"count {count} out of supported range 1-7")
+        raise ValueError(f"count {count} out of supported range 1-10")
     word = NUMBER_WORDS[count]
     noun = obj if count == 1 else pluralize(obj)
     return f"{word} {noun}"
