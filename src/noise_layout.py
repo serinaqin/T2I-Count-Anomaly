@@ -36,7 +36,7 @@ def _bump_envelope(boxes, H, W, omega, alpha):
 
 def count_aware_latent(base, n, scheme="gaussian", gamma=0.1, omega=0.3,
                        alpha=0.8, fixed_value=0.0, fill=0.6, beta=1.6,
-                       noise_seed=0):
+                       noise_seed=0, channel_weights=None):
     """Inject a count-aware layout into the initial latent: partition into N
     boxes and perturb the in-box noise. Schemes:
       - uniform_scaled: scale in-box noise by gamma
@@ -44,6 +44,9 @@ def count_aware_latent(base, n, scheme="gaussian", gamma=0.1, omega=0.3,
       - gaussian: add a positive Gaussian bump (DC -> can tint color)
       - noise_boost: multiply in-box noise by beta>1 (artifact-free, zero-mean)
       - gaussian_noise: add a Gaussian-enveloped fresh noise (artifact-free)
+      - gaussian_gray: additive Gaussian bump weighted per channel by
+        `channel_weights` (the VAE's neutral/gray latent direction) so it seeds
+        objects WITHOUT tinting color
     `base` is (1, C, H, W); returns a modified copy."""
     lat = base.clone()
     _, C, H, W = lat.shape
@@ -65,6 +68,12 @@ def count_aware_latent(base, n, scheme="gaussian", gamma=0.1, omega=0.3,
         g = torch.Generator(device="cpu").manual_seed(noise_seed)
         noise = torch.randn((1, C, H, W), generator=g)
         extra = bump[None, None] * noise
+        lat = lat + extra.to(lat.dtype).to(lat.device)
+    elif scheme == "gaussian_gray":
+        bump = _bump_envelope(boxes, H, W, omega, alpha)
+        w = torch.ones(C) if channel_weights is None \
+            else torch.as_tensor(channel_weights, dtype=torch.float32)
+        extra = bump[None, None] * w.reshape(1, C, 1, 1)
         lat = lat + extra.to(lat.dtype).to(lat.device)
     else:
         raise ValueError(f"unknown scheme {scheme}")

@@ -1,0 +1,14 @@
+# Phase 5c: gaussian_gray - additive bump projected onto the VAE neutral (gray)
+# latent direction, so it seeds objects WITHOUT the green color tint.
+counts: [4, 5, 6, 7, 8]
+objects: [cat]
+seeds: [0, 1, 2, 3, 4]
+num_inference_steps: 30
+score_threshold: 0.3
+schemes: [gaussian, gaussian_gray]
+gamma: 0.1
+omega: 0.3
+alpha: 0.8
+beta: 1.6
+box_fill: 0.6
+gray_amp: 1.0     # extra multiplier on the gray-direction amplitude (tune if weak)

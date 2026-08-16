@@ -45,3 +45,14 @@ def test_gaussian_noise_localized_and_artifact_free():
     assert inbox > corner                                   # energy in the box
     # artifact-free: no strong positive DC shared across channels at the center
     assert out[0, :, 32, 32].mean().abs() < out[:, :, y0:y1, x0:x1].abs().mean()
+
+
+def test_gaussian_gray_channel_weighted():
+    base = torch.zeros(1, 4, 64, 64)
+    w = torch.tensor([1.0, -1.0, 0.0, 2.0])
+    out = count_aware_latent(base, 1, scheme="gaussian_gray", omega=0.3,
+                             channel_weights=w)
+    assert torch.allclose(out[0, 2], base[0, 2])          # weight 0 -> unchanged
+    c0, c3 = out[0, 0, 32, 32], out[0, 3, 32, 32]
+    assert abs(c3 - 2 * c0) < 1e-4                          # ch3 = 2 * ch0 (weights)
+    assert torch.allclose(out[0, 1, 32, 32], -c0, atol=1e-4)  # ch1 = -ch0
