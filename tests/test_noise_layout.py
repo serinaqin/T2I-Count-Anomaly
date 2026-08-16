@@ -25,3 +25,23 @@ def test_fixed_and_uniform_scaled():
     assert torch.allclose(f[0, 0, y0:y1, x0:x1], torch.zeros(y1 - y0, x1 - x0))
     u = count_aware_latent(base, 1, scheme="uniform_scaled", gamma=0.1)
     assert torch.allclose(u[0, 0, y0:y1, x0:x1], 0.1 * torch.ones(y1 - y0, x1 - x0))
+
+
+def test_noise_boost_amplifies_box():
+    base = torch.ones(1, 4, 64, 64)
+    out = count_aware_latent(base, 1, scheme="noise_boost", beta=1.6)
+    (y0, y1, x0, x1) = grid_boxes(1, 64, 64)[0]
+    assert torch.allclose(out[0, 0, y0:y1, x0:x1],
+                          torch.full((y1 - y0, x1 - x0), 1.6))
+
+
+def test_gaussian_noise_localized_and_artifact_free():
+    base = torch.zeros(1, 4, 64, 64)
+    out = count_aware_latent(base, 1, scheme="gaussian_noise", omega=0.3, noise_seed=0)
+    assert out.shape == base.shape
+    (y0, y1, x0, x1) = grid_boxes(1, 64, 64)[0]
+    inbox = out[:, :, y0:y1, x0:x1].abs().mean()
+    corner = out[:, :, :8, :8].abs().mean()
+    assert inbox > corner                                   # energy in the box
+    # artifact-free: no strong positive DC shared across channels at the center
+    assert out[0, :, 32, 32].mean().abs() < out[:, :, y0:y1, x0:x1].abs().mean()

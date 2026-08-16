@@ -1,0 +1,13 @@
+# Phase 5b: artifact-free noise injection, tested in the HIGH-count regime
+# (where baseline collapses and injection has room to help).
+counts: [4, 5, 6, 7, 8]
+objects: [cat]
+seeds: [0, 1, 2, 3, 4]
+num_inference_steps: 30
+score_threshold: 0.3
+schemes: [gaussian, noise_boost, gaussian_noise]  # old vs artifact-free
+gamma: 0.1
+omega: 0.3        # gaussian / gaussian_noise amplitude
+alpha: 0.8
+beta: 1.6         # noise_boost: in-box variance multiplier
+box_fill: 0.6
