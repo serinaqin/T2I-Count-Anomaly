@@ -1,0 +1,12 @@
+# Phase 5d: sweep the gaussian_gray amplitude to find the sweet spot where the
+# untinted bump forces the count as reliably as plain gaussian - coherent AND
+# accurate. gaussian_gray was clean but under-seeded at gray_amp=1.
+counts: [5, 6, 7, 8]
+objects: [cat]
+seeds: [0, 1, 2, 3]
+num_inference_steps: 30
+score_threshold: 0.3
+omega: 0.3
+alpha: 0.8
+box_fill: 0.6
+gray_amps: [1.0, 1.5, 2.0, 2.5]
