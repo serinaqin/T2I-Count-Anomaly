@@ -1,0 +1,12 @@
+# Spatial probe: is the rendered count decodable from the SPATIAL layout of the
+# up-block self-attention map, but not from a global (pooled) summary? Decode
+# rendered count from the map at increasing grid resolution g.
+counts: [1, 2, 3, 4, 5]
+objects: [cat, dog]
+seeds: [0, 1, 2, 3, 4, 5, 6, 7, 8, 9]    # n = 5 counts x 2 obj x 10 = 100
+num_inference_steps: 30
+score_threshold: 0.3
+patch_block: up_blocks.0
+patch_attn: attn1
+capture_step: 15            # where rendered count is most decodable (Phase 2)
+grid_sizes: [1, 2, 4]       # g=1 global (spatially blind) -> g=4 spatial (16 feat, n~100)

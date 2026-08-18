@@ -1,6 +1,16 @@
 import numpy as np
 from src.spatial import (featuremap_saliency, saliency_to_instance_count,
-                         find_peaks, count_peaks)
+                         find_peaks, count_peaks, grid_pool_2d)
+
+
+def test_grid_pool_2d_shapes_and_values():
+    m = np.ones((8, 8))
+    assert grid_pool_2d(m, 1).shape == (1,)
+    assert np.allclose(grid_pool_2d(m, 1), [1.0])       # global mean
+    assert grid_pool_2d(m, 4).shape == (16,)
+    m2 = np.zeros((8, 8)); m2[:4, :4] = 1.0              # hot top-left quadrant
+    out = grid_pool_2d(m2, 2)                            # (2x2) flattened
+    assert out[0] == 1.0 and out[1] == 0.0 and out[2] == 0.0 and out[3] == 0.0
 
 
 def test_featuremap_saliency_shape_and_peak():

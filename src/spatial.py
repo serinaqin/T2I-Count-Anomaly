@@ -52,3 +52,19 @@ def count_peaks(sal, sigma=1.0, min_distance=2, thresh_rel=0.5) -> int:
     """Number of object-center peaks in the saliency map (calibrated instance
     count; robust to merged objects and texture, unlike blob counting)."""
     return len(find_peaks(sal, sigma, min_distance, thresh_rel))
+
+
+def grid_pool_2d(m, g):
+    """Average-pool a 2D map into a g x g grid, flattened to (g*g,). g=1 gives
+    the global mean (spatially blind); larger g preserves spatial layout. Used
+    to test whether a signal (e.g. object count) lives in spatial structure."""
+    m = np.asarray(m, float)
+    H, W = m.shape
+    ys = np.linspace(0, H, g + 1).astype(int)
+    xs = np.linspace(0, W, g + 1).astype(int)
+    out = np.zeros((g, g))
+    for i in range(g):
+        for j in range(g):
+            block = m[ys[i]:ys[i + 1], xs[j]:xs[j + 1]]
+            out[i, j] = block.mean() if block.size else 0.0
+    return out.ravel()
