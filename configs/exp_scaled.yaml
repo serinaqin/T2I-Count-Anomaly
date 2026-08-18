@@ -1,0 +1,13 @@
+# Scaled same-category causal replication with statistics.
+# Multiple objects x both directions x many seeds; bootstrap CIs + permutation
+# test on the donor-directed count shift. Fixes pilot-scale / no-n / cat-dog-only.
+# ~45-60 min at these settings; reduce seeds/objects for a quick pilot.
+counts: [2, 5]
+objects: [cat, dog, bird, car]
+seeds: [0, 1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11]
+num_inference_steps: 30
+score_threshold: 0.3
+patch_block: up_blocks.0
+patch_attn: attn1
+patch_steps: [0, 1, 2, 3, 4, 5]
+pairs: [[2, 5], [5, 2]]     # (source, donor) counts; both directions

@@ -1,7 +1,17 @@
 import pandas as pd
 from src.analysis import (variance_explained, noise_vs_text_decomposition,
                           text_responsiveness, count_variance_decomposition,
-                          per_seed_summary, flag_degenerate)
+                          per_seed_summary, flag_degenerate,
+                          bootstrap_ci, sign_flip_pvalue)
+
+
+def test_bootstrap_ci_constant():
+    lo, hi = bootstrap_ci([5.0] * 20)
+    assert abs(lo - 5.0) < 1e-9 and abs(hi - 5.0) < 1e-9
+
+def test_sign_flip_pvalue_strong_vs_null():
+    assert sign_flip_pvalue([2.0] * 30, seed=0) < 0.01        # clearly nonzero mean
+    assert sign_flip_pvalue([1, -1] * 15, seed=0) > 0.2       # zero-mean -> not sig.
 
 def test_variance_explained_all_from_factor():
     # realized_count depends ONLY on seed

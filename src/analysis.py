@@ -1,6 +1,30 @@
+import numpy as np
 import pandas as pd
 from sklearn.linear_model import LinearRegression
 from sklearn.metrics import r2_score
+
+
+def bootstrap_ci(x, ci=0.95, n=2000, seed=0):
+    """Bootstrap confidence interval for the mean of x."""
+    x = np.asarray(x, float)
+    if len(x) == 0:
+        return (float("nan"), float("nan"))
+    rng = np.random.default_rng(seed)
+    means = x[rng.integers(0, len(x), (n, len(x)))].mean(axis=1)
+    a = (1 - ci) / 2
+    return float(np.quantile(means, a)), float(np.quantile(means, 1 - a))
+
+
+def sign_flip_pvalue(x, n=2000, seed=0):
+    """Two-sided permutation (sign-flip) test that mean(x) != 0."""
+    x = np.asarray(x, float)
+    if len(x) == 0:
+        return float("nan")
+    obs = abs(x.mean())
+    rng = np.random.default_rng(seed)
+    signs = rng.choice([-1.0, 1.0], size=(n, len(x)))
+    null = np.abs((x * signs).mean(axis=1))
+    return float((null >= obs).mean())
 
 
 def variance_explained(df, value: str, factor: str) -> float:
