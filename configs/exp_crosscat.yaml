@@ -1,0 +1,20 @@
+# Cross-category causal patching + donor controls.
+# Source = "two cats". Inject donor early up0 self-attn from 4 conditions and
+# score BOTH categories in the output -> does COUNT transfer without CATEGORY
+# (abstract count/layout code) or does category leak (scene template)?
+counts: [2, 5]
+objects: [cat, dog]
+seeds: [0, 1, 2, 3, 4, 5, 6, 7]
+num_inference_steps: 30
+score_threshold: 0.3
+patch_block: up_blocks.0
+patch_attn: attn1
+patch_steps: [0, 1, 2, 3, 4, 5]
+source_cat: cat
+source_count: 2
+# donors as (count, category, label); includes same-count and cross-category controls
+donors:
+  - [2, cat, "ctrl_same-cat_same-count"]
+  - [5, cat, "same-cat_cross-count"]
+  - [2, dog, "ctrl_cross-cat_same-count"]
+  - [5, dog, "KEY_cross-cat_cross-count"]
