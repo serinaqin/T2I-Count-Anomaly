@@ -1,0 +1,158 @@
+"""Generate notebooks/exp_detval.ipynb (detector-oracle validation).
+
+Every count number rests on GroundingDINO; car has repeatedly behaved
+anomalously. This validates the oracle: cross-check vs a 2nd open-vocab
+detector (OWL-ViT), threshold sensitivity, per-category agreement, and a
+human-annotation scaffold. Thin Colab driver.
+
+Run: python notebooks/_build_exp_detval.py
+"""
+import nbformat as nbf
+
+nb = nbf.v4.new_notebook()
+c = []
+
+c.append(nbf.v4.new_markdown_cell(
+    "# Detector-oracle validation\n"
+    "All count numbers depend on GroundingDINO, and `car` keeps behaving oddly. "
+    "Here we (1) cross-check GroundingDINO against a second open-vocab detector "
+    "(**OWL-ViT**), (2) test **threshold sensitivity**, (3) break agreement down "
+    "**per category**, and (4) provide a **human-annotation** scaffold for a "
+    "detector-vs-human check.\n\n**Runtime:** GPU (~20 min)."))
+
+c.append(nbf.v4.new_code_cell(
+    "import os\n"
+    "if not os.path.exists('src'):\n"
+    "    !git clone https://github.com/serinaqin/T2I-Count-Anomaly.git\n"
+    "    %cd T2I-Count-Anomaly\n"
+    "else:\n"
+    "    !git pull\n"
+    "!pip install -q -r requirements.txt\n"
+    "!pip install -q pytest groundingdino-py"))
+
+c.append(nbf.v4.new_code_cell(
+    "import sys; sys.path.insert(0, '.')\n"
+    "import numpy as np, pandas as pd, os, yaml, torch\n"
+    "import matplotlib.pyplot as plt\n"
+    "from src.prompts import build_prompt, generate_grid\n"
+    "from src.pipeline import load_sdxl, generate\n"
+    "from src.detector import Detector\n"
+    "from src.scoring import count_from_detections, nms, exact_accuracy, mae\n"
+    "from src.config import load_config\n"
+    "from transformers import OwlViTProcessor, OwlViTForObjectDetection"))
+
+c.append(nbf.v4.new_code_cell(
+    "cfg = load_config('configs/exp_detval.yaml')\n"
+    "raw = yaml.safe_load(open('configs/exp_detval.yaml'))\n"
+    "gthr = raw['gdino_thresholds']; owl_thr = raw['owl_threshold']\n"
+    "pipe = load_sdxl(); gdino = Detector()\n"
+    "owl_proc = OwlViTProcessor.from_pretrained('google/owlvit-base-patch32')\n"
+    "owl_model = OwlViTForObjectDetection.from_pretrained('google/owlvit-base-patch32').to(pipe.device)\n"
+    "@torch.no_grad()\n"
+    "def owl_count(img, obj, thr):\n"
+    "    inp = owl_proc(text=[[f'a photo of a {obj}']], images=img, return_tensors='pt').to(pipe.device)\n"
+    "    out = owl_model(**inp)\n"
+    "    ts = torch.tensor([img.size[::-1]]).to(pipe.device)\n"
+    "    res = owl_proc.post_process_object_detection(out, threshold=thr, target_sizes=ts)[0]\n"
+    "    boxes = [{'label': obj, 'score': float(s), 'box': [float(x) for x in b]}\n"
+    "             for s, b in zip(res['scores'], res['boxes'])]\n"
+    "    return len(nms(boxes, 0.5))\n"
+    "def gdino_count(img, obj, thr):\n"
+    "    return count_from_detections(gdino.detect(img, [obj]), obj, thr)"))
+
+c.append(nbf.v4.new_code_cell(
+    "# Generate a validation set; score with GroundingDINO (3 thresholds) + OWL-ViT.\n"
+    "grid = generate_grid(cfg.counts, cfg.objects, cfg.seeds)\n"
+    "images, rows = [], []\n"
+    "for i, p in enumerate(grid):\n"
+    "    img = generate(pipe, p.text, p.seed, cfg.num_inference_steps)\n"
+    "    images.append(img)\n"
+    "    r = {'idx': i, 'obj': p.obj, 'count': p.count, 'seed': p.seed}\n"
+    "    for t in gthr:\n"
+    "        r[f'gdino_{t}'] = gdino_count(img, p.obj, t)\n"
+    "    r['owl'] = owl_count(img, p.obj, owl_thr)\n"
+    "    rows.append(r)\n"
+    "    if (i + 1) % 20 == 0: print(f'{i+1}/{len(grid)}')\n"
+    "df = pd.DataFrame(rows)\n"
+    "os.makedirs('results', exist_ok=True)\n"
+    "df.to_csv('results/exp_detval.csv', index=False)\n"
+    "df.head()"))
+
+c.append(nbf.v4.new_code_cell(
+    "# GroundingDINO (@0.3) vs OWL-ViT agreement, overall and per category.\n"
+    "g = 'gdino_0.3'\n"
+    "def agree(a, b):\n"
+    "    a, b = np.asarray(a, float), np.asarray(b, float)\n"
+    "    return pd.Series({'exact_match': float(np.mean(a == b)),\n"
+    "                      'MAE': float(np.mean(np.abs(a - b))),\n"
+    "                      'corr': float(np.corrcoef(a, b)[0, 1]) if a.std() and b.std() else np.nan})\n"
+    "print('OVERALL GroundingDINO@0.3 vs OWL-ViT:')\n"
+    "print(agree(df[g], df['owl']).round(3))\n"
+    "print('\\nPER CATEGORY:')\n"
+    "per = df.groupby('obj').apply(lambda d: agree(d[g], d['owl'])).round(3)\n"
+    "print(per)\n"
+    "per.to_csv('results/exp_detval_percat.csv')"))
+
+c.append(nbf.v4.new_code_cell(
+    "# Threshold sensitivity: mean GroundingDINO count per category at each threshold.\n"
+    "sens = df.groupby('obj')[[f'gdino_{t}' for t in gthr] + ['owl']].mean().round(2)\n"
+    "print('mean detected count by category (GDINO thresholds + OWL):')\n"
+    "print(sens)\n"
+    "ax = sens.plot(kind='bar', figsize=(10, 4.5))\n"
+    "ax.set_ylabel('mean detected count'); ax.set_title('Detector counts by category & threshold')\n"
+    "plt.xticks(rotation=0); plt.tight_layout()\n"
+    "plt.savefig('results/exp_detval_thresholds.png', dpi=100, bbox_inches='tight'); plt.show()"))
+
+c.append(nbf.v4.new_code_cell(
+    "# HUMAN ANNOTATION scaffold. Displays n_human images with detector counts;\n"
+    "# fill `human` below with YOUR true counts, then run the next cell.\n"
+    "rng = np.random.default_rng(0)\n"
+    "pick = sorted(rng.choice(len(images), size=min(raw['n_human'], len(images)), replace=False))\n"
+    "cols = 4; nrows = (len(pick) + cols - 1) // cols\n"
+    "fig, axes = plt.subplots(nrows, cols, figsize=(cols * 3, nrows * 3))\n"
+    "axes = np.array(axes).flatten()\n"
+    "for ax, idx in zip(axes, pick):\n"
+    "    r = df.iloc[idx]\n"
+    "    ax.imshow(images[idx]); ax.axis('off')\n"
+    "    ax.set_title(f\"idx {idx}: {r['count']} {r['obj']}\\nGDINO {r['gdino_0.3']} | OWL {r['owl']}\", fontsize=7)\n"
+    "for ax in axes[len(pick):]: ax.axis('off')\n"
+    "plt.tight_layout(); plt.savefig('results/exp_detval_human.png', dpi=80, bbox_inches='tight'); plt.show()\n"
+    "print('Fill in your true counts, e.g.:  human = {', pick[0], ': 2, ', pick[1], ': 3, ...}')\n"
+    "print('picked indices:', pick)"))
+
+c.append(nbf.v4.new_code_cell(
+    "# After filling `human = {idx: true_count, ...}` for the picked indices, run this.\n"
+    "human = {}   # <-- FILL THIS IN from the grid above\n"
+    "if human:\n"
+    "    idxs = list(human.keys()); tv = np.array([human[i] for i in idxs], float)\n"
+    "    gd = df.set_index('idx').loc[idxs, 'gdino_0.3'].to_numpy(float)\n"
+    "    ow = df.set_index('idx').loc[idxs, 'owl'].to_numpy(float)\n"
+    "    print('GroundingDINO@0.3 vs HUMAN: exact', round(float(np.mean(gd==tv)),3),\n"
+    "          '| MAE', round(float(np.mean(np.abs(gd-tv))),3),\n"
+    "          '| corr', round(float(np.corrcoef(gd,tv)[0,1]),3))\n"
+    "    print('OWL-ViT vs HUMAN:          exact', round(float(np.mean(ow==tv)),3),\n"
+    "          '| MAE', round(float(np.mean(np.abs(ow-tv))),3))\n"
+    "else:\n"
+    "    print('human dict is empty - fill it in from the grid above and re-run this cell.')"))
+
+c.append(nbf.v4.new_markdown_cell(
+    "## How to read this\n"
+    "- **GroundingDINO@0.3 vs OWL-ViT: high per-category agreement (exact-match, "
+    "low MAE)** = the count oracle is stable and our numbers are trustworthy for "
+    "those categories.\n"
+    "- **A category with poor GDINO-OWL agreement / large threshold sensitivity "
+    "(likely `car`)** = the oracle is unreliable there -> DROP that category from "
+    "the quantitative claims (and note it), which also cleans up Exp #2's forest "
+    "plot and Exp #3.\n"
+    "- **Human check:** fill in true counts for the shown sample; report "
+    "GDINO-vs-human exact-match / MAE as the headline oracle validation the paper "
+    "needs. If GDINO tracks humans well (except car), we cite that and proceed."))
+
+nb["cells"] = c
+nb["metadata"] = {"accelerator": "GPU", "colab": {"provenance": []},
+                  "kernelspec": {"name": "python3", "display_name": "Python 3"}}
+
+import os
+out = os.path.join(os.path.dirname(__file__), "exp_detval.ipynb")
+nbf.write(nb, out)
+print("wrote", out)

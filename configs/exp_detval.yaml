@@ -1,0 +1,11 @@
+# Detector validation: is the GroundingDINO count oracle reliable (esp. per
+# category, e.g. car)? Cross-check vs a 2nd open-vocab detector (OWL-ViT),
+# threshold sensitivity, and a human-annotation scaffold.
+counts: [1, 2, 3, 4, 5, 6]
+objects: [cat, dog, bird, car, apple, bottle]
+seeds: [0, 1, 2]
+num_inference_steps: 30
+score_threshold: 0.3
+gdino_thresholds: [0.2, 0.3, 0.4]
+owl_threshold: 0.1
+n_human: 24          # images to display for manual human annotation
