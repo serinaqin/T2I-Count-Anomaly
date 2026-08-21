@@ -3,11 +3,11 @@ from scipy import ndimage
 from scipy.ndimage import gaussian_filter, maximum_filter
 
 
-def featuremap_saliency(act, cond_index=1):
+def featuremap_saliency(act, cond_index=1, normalize=True):
     """Per-pixel saliency of an attention feature map. (B,T,C)->cond half
-    (T,C)-> L2 norm over channels -> (H,W) with H=W=round(sqrt(T)), min-max
-    normalized to [0,1]. Keeps spatial structure (unlike pooling) so we can
-    count distinct object blobs."""
+    (T,C)-> L2 norm over channels -> (H,W) with H=W=round(sqrt(T)). If
+    normalize, min-max to [0,1] (for eyeball/peak-count); if not, return the
+    raw per-pixel energy (preserves 'amount', needed for magnitude probing)."""
     a = act.detach().cpu().float().numpy() if hasattr(act, "detach") \
         else np.asarray(act, float)
     if a.ndim == 3:
@@ -15,6 +15,8 @@ def featuremap_saliency(act, cond_index=1):
     norm = np.linalg.norm(a, axis=-1)                            # (T,)
     h = int(round(np.sqrt(norm.shape[0])))
     sal = norm[: h * h].reshape(h, h)
+    if not normalize:
+        return sal
     lo, hi = sal.min(), sal.max()
     return (sal - lo) / (hi - lo) if hi > lo else np.zeros_like(sal)
 

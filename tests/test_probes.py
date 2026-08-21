@@ -1,6 +1,15 @@
 import numpy as np
 from src.probes import (fit_eval_classifier, fit_eval_magnitude,
-                        decodability_map, count_direction)
+                        decodability_map, count_direction, cv_r2)
+
+
+def test_cv_r2_signal_vs_noise():
+    rng = np.random.default_rng(0)
+    n = 120
+    X = rng.normal(size=(n, 3))
+    y = 2 * X[:, 0] + rng.normal(0, 0.1, n)
+    assert cv_r2(X, y) > 0.8                       # clear linear signal
+    assert cv_r2(X, rng.normal(size=n)) < 0.3      # noise -> ~0, not wildly neg
 
 def test_classifier_separable():
     rng = np.random.default_rng(0)

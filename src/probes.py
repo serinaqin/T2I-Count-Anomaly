@@ -1,7 +1,23 @@
 import numpy as np
-from sklearn.linear_model import LogisticRegression, LinearRegression
+from sklearn.linear_model import LogisticRegression, LinearRegression, Ridge
 from sklearn.metrics import balanced_accuracy_score, r2_score
-from sklearn.model_selection import train_test_split
+from sklearn.model_selection import train_test_split, cross_val_score
+from sklearn.pipeline import make_pipeline
+from sklearn.preprocessing import StandardScaler
+
+
+def cv_r2(X, y, k=5, alpha=10.0) -> float:
+    """Cross-validated R^2 of a standardized ridge regression. Stable for
+    small-n / many-feature probes (avoids the overfit-driven negative R^2 of a
+    single unregularized split): returns ~0 when uninformative, not wildly
+    negative."""
+    X = np.asarray(X, float)
+    if X.ndim == 1:
+        X = X.reshape(-1, 1)
+    y = np.asarray(y, float)
+    k = min(k, len(y))
+    model = make_pipeline(StandardScaler(), Ridge(alpha=alpha))
+    return float(cross_val_score(model, X, y, cv=k, scoring="r2").mean())
 
 
 def fit_eval_classifier(X, y, seed: int = 0) -> dict:
