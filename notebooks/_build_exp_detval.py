@@ -98,6 +98,20 @@ c.append(nbf.v4.new_code_cell(
     "per.to_csv('results/exp_detval_percat.csv')"))
 
 c.append(nbf.v4.new_code_cell(
+    "# CLEAN-subset agreement: exclude degenerate 'collage' generations (either\n"
+    "# detector >> the max requested count) where both detectors are unreliable.\n"
+    "g = 'gdino_0.3'\n"
+    "deg = (df[g] > 10) | (df['owl'] > 10)   # max requested is 6; >10 = collage\n"
+    "clean = df[~deg]\n"
+    "a, b = clean[g].to_numpy(float), clean['owl'].to_numpy(float)\n"
+    "print(f'degenerate/collage excluded: {int(deg.sum())}/{len(df)}')\n"
+    "print('CLEAN subset GDINO@0.3 vs OWL:  exact', round(float((a == b).mean()), 3),\n"
+    "      '| MAE', round(float(np.abs(a - b).mean()), 3),\n"
+    "      '| corr', round(float(np.corrcoef(a, b)[0, 1]), 3))\n"
+    "print('\\nclean per-category MAE (GDINO vs OWL):')\n"
+    "print(clean.groupby('obj').apply(lambda d: float(np.abs(d[g] - d['owl']).mean())).round(2))"))
+
+c.append(nbf.v4.new_code_cell(
     "# Threshold sensitivity: mean GroundingDINO count per category at each threshold.\n"
     "sens = df.groupby('obj')[[f'gdino_{t}' for t in gthr] + ['owl']].mean().round(2)\n"
     "print('mean detected count by category (GDINO thresholds + OWL):')\n"
