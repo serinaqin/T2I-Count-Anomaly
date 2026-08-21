@@ -29,6 +29,8 @@ c.append(nbf.v4.new_code_cell(
     "if not os.path.exists('src'):\n"
     "    !git clone https://github.com/serinaqin/T2I-Count-Anomaly.git\n"
     "    %cd T2I-Count-Anomaly\n"
+    "else:\n"
+    "    !git pull   # get latest src fixes (NOTE: still Restart Runtime to reload imported modules)\n"
     "!pip install -q -r requirements.txt\n"
     "!pip install -q pytest groundingdino-py"))
 
