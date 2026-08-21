@@ -42,6 +42,18 @@ def load_sdxl(device="cuda", dtype=torch.float16):
     return pipe.to(device)
 
 
+def load_sd15(device="cuda", dtype=torch.float16,
+              model_id="stable-diffusion-v1-5/stable-diffusion-v1-5"):
+    """Load Stable Diffusion 1.5 (a second U-Net backbone for generalization
+    tests). Same UNet family as SDXL (down/mid/up blocks, attn1/attn2), so the
+    capture/patching machinery ports; resolution 512 -> latent 64x64, one CLIP
+    text encoder. safety_checker disabled so it never blanks images."""
+    from diffusers import StableDiffusionPipeline
+    pipe = StableDiffusionPipeline.from_pretrained(
+        model_id, torch_dtype=dtype, safety_checker=None)
+    return pipe.to(device)
+
+
 def generate(pipe, prompt, seed, num_inference_steps=30):
     g = torch.Generator(device=pipe.device).manual_seed(seed)
     return pipe(prompt, generator=g,

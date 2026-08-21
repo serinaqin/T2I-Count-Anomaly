@@ -1,0 +1,13 @@
+# Second-model generalization: does the early up-block self-attention causal
+# locus replicate in SD 1.5? Sweep up-block self-attn (SD1.5 attention is in
+# different up-blocks than SDXL) x early steps; measure donor-directed count
+# shift with CIs to re-localize and confirm the effect.
+counts: [2, 5]
+objects: [cat, dog]
+seeds: [0, 1, 2, 3, 4, 5, 6, 7]
+num_inference_steps: 30
+score_threshold: 0.3
+patch_attn: attn1
+patch_steps: [0, 1, 2, 3, 4, 5]
+pairs: [[2, 5], [5, 2]]
+model_id: stable-diffusion-v1-5/stable-diffusion-v1-5
