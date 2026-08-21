@@ -1,22 +1,29 @@
 import numpy as np
-from sklearn.linear_model import LogisticRegression, LinearRegression, Ridge
+from sklearn.linear_model import (LogisticRegression, LinearRegression, Ridge,
+                                  RidgeCV)
 from sklearn.metrics import balanced_accuracy_score, r2_score
 from sklearn.model_selection import train_test_split, cross_val_score
 from sklearn.pipeline import make_pipeline
 from sklearn.preprocessing import StandardScaler
+from sklearn.decomposition import PCA
 
 
-def cv_r2(X, y, k=5, alpha=10.0) -> float:
-    """Cross-validated R^2 of a standardized ridge regression. Stable for
-    small-n / many-feature probes (avoids the overfit-driven negative R^2 of a
-    single unregularized split): returns ~0 when uninformative, not wildly
-    negative."""
+def cv_r2(X, y, k=5, n_pca=20) -> float:
+    """Cross-validated R^2 of a standardized (PCA -> RidgeCV) regression. Robust
+    for p >> n probes: PCA caps dimensionality and RidgeCV self-selects the
+    penalty per fold, so an uninformative probe returns ~0, not a spurious large
+    negative from overfitting."""
     X = np.asarray(X, float)
     if X.ndim == 1:
         X = X.reshape(-1, 1)
     y = np.asarray(y, float)
     k = min(k, len(y))
-    model = make_pipeline(StandardScaler(), Ridge(alpha=alpha))
+    steps = [StandardScaler()]
+    npca = min(n_pca, X.shape[1], max(1, len(y) - len(y) // k - 1))
+    if X.shape[1] > npca:
+        steps.append(PCA(n_components=npca, random_state=0))
+    steps.append(RidgeCV(alphas=np.logspace(-1, 4, 10)))
+    model = make_pipeline(*steps)
     return float(cross_val_score(model, X, y, cv=k, scoring="r2").mean())
 
 
