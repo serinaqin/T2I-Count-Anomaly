@@ -2,7 +2,7 @@ import numpy as np
 from sklearn.linear_model import (LogisticRegression, LinearRegression, Ridge,
                                   RidgeCV)
 from sklearn.metrics import balanced_accuracy_score, r2_score
-from sklearn.model_selection import train_test_split, cross_val_score
+from sklearn.model_selection import train_test_split, cross_val_score, KFold
 from sklearn.pipeline import make_pipeline
 from sklearn.preprocessing import StandardScaler
 from sklearn.decomposition import PCA
@@ -24,7 +24,8 @@ def cv_r2(X, y, k=5, n_pca=20) -> float:
         steps.append(PCA(n_components=npca, random_state=0))
     steps.append(RidgeCV(alphas=np.logspace(-1, 4, 10)))
     model = make_pipeline(*steps)
-    return float(cross_val_score(model, X, y, cv=k, scoring="r2").mean())
+    cv = KFold(n_splits=k, shuffle=True, random_state=0)   # shuffle: rows are ordered by object/count
+    return float(cross_val_score(model, X, y, cv=cv, scoring="r2").mean())
 
 
 def fit_eval_classifier(X, y, seed: int = 0) -> dict:

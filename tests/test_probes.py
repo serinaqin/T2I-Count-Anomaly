@@ -11,6 +11,14 @@ def test_cv_r2_signal_vs_noise():
     assert cv_r2(X, y) > 0.8                       # clear linear signal
     assert cv_r2(X, rng.normal(size=n)) < 0.3      # noise -> ~0, not wildly neg
 
+def test_cv_r2_robust_to_row_order():
+    # rows sorted by target (as in object/count-ordered grids) must not break CV
+    rng = np.random.default_rng(0)
+    n = 120
+    X = rng.normal(size=(n, 5)); y = 2 * X[:, 0] + rng.normal(0, 0.1, n)
+    o = np.argsort(y)
+    assert cv_r2(X[o], y[o]) > 0.8                  # shuffled folds recover signal
+
 def test_classifier_separable():
     rng = np.random.default_rng(0)
     X0 = rng.normal(0, 0.1, (50, 5))
