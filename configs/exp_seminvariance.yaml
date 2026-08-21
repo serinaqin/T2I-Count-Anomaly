@@ -1,0 +1,9 @@
+# Semantic-invariance of the numeral representation (text encoder only; no
+# image generation). Does the count decode from the text embedding in a
+# FORM-INVARIANT way (train on word form 'three', test on digit '3'), or only
+# lexically? Tests whether 'decodable' means 'numerically comprehended'.
+counts: [1, 2, 3, 4, 5, 6]
+objects: [cat, dog, bird, car, apple, bottle, cup, chair]
+num_inference_steps: 30
+score_threshold: 0.3
+seeds: [0]

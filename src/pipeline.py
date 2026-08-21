@@ -110,6 +110,17 @@ def raw_reducer(act, cond_index=1):
     return act.detach().cpu()
 
 
+def spatial_scramble(act, seed=0):
+    """Randomly permute the token (spatial) dimension of an activation (...,T,C),
+    preserving the channel content of each token but destroying spatial layout.
+    Used to test whether a patch's effect depends on spatial arrangement vs its
+    channel/statistical content."""
+    dev = act.device if hasattr(act, "device") else "cpu"
+    g = torch.Generator(device=dev).manual_seed(seed)
+    perm = torch.randperm(act.shape[-2], generator=g, device=dev)
+    return act[..., perm, :].contiguous()
+
+
 def make_patch_hook(site, patch_map, state):
     """Forward hook that replaces a module's output with a donor tensor when
     the current step (state['step']) is a patch step for this site."""

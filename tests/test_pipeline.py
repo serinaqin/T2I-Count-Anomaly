@@ -41,6 +41,15 @@ def test_make_patch_hook_replaces_at_target_step():
     assert hook(None, (out,), out) is None               # untouched otherwise
 
 
+def test_spatial_scramble_permutes_tokens():
+    from src.pipeline import spatial_scramble
+    t = torch.arange(2 * 4 * 3).reshape(2, 4, 3).float()
+    s = spatial_scramble(t, seed=1)
+    assert s.shape == t.shape
+    assert torch.allclose(s.sum(), t.sum())     # same tokens, reordered
+    assert not torch.equal(s, t)                # order actually changed
+
+
 def test_make_steer_hook_adds_direction():
     from src.pipeline import make_steer_hook
     d = torch.tensor([1.0, 2.0, 3.0])
